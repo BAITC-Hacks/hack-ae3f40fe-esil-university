@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Request
+from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from src import FilterEngine, QueryError, SearchRequest, load_profiles
 from src.data_loader import DEFAULT_DATASET
+from src.recommendation_service import RecommendationService
 
 
 class SearchBody(BaseModel):
@@ -23,17 +25,29 @@ class SearchBody(BaseModel):
     duration_hours: Annotated[float, Field(strict=True, gt=0, allow_inf_nan=False)] | None = None
 
 
-def create_app(dataset_path: str | Path | None = None) -> FastAPI:
+def create_app(dataset_path: str | Path | None = None, *, explainer=None,
+               timeout_seconds: float = 8.0, env_file: str | Path | None = Path(__file__).with_name(".env")) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
+        if env_file is not None:
+            load_dotenv(env_file, override=False)
         path = dataset_path or os.environ.get("DATASET_PATH") or DEFAULT_DATASET
         # Ошибки датасета останавливают запуск: поврежденный каталог нельзя скрывать.
         application.state.engine = FilterEngine(load_profiles(path))
-        yield
+        application.state.service = RecommendationService(
+            application.state.engine, explainer=explainer, timeout_seconds=timeout_seconds,
+        )
+        try:
+            yield
+        finally:
+            if explainer is None:
+                client = application.state.service.explainer.client
+                if client is not None:
+                    client.close()
 
     application = FastAPI(
-        title="HackAlem — Backend участника 1", version="1.0.0",
-        description="Отбор до 5 кандидатов и до 3 карточек. Без бронирования и вызовов LLM.",
+        title="HackAlem — подбор подрядчиков", version="1.1.0",
+        description="Строгий отбор до 5 кандидатов, до 3 карточек и объяснения OpenAI/NVIDIA.",
         lifespan=lifespan,
     )
 
@@ -49,11 +63,11 @@ def create_app(dataset_path: str | Path | None = None) -> FastAPI:
         return request.app.state.engine.options()
 
     @application.post("/recommendations")
-    def recommendations(body: SearchBody, request: Request):
+    async def recommendations(body: SearchBody, request: Request):
         """A/B/C возвращаются с HTTP 200. Неверный ввод — HTTP 422."""
         try:
             query = SearchRequest.from_mapping(body.model_dump())
-            return request.app.state.engine.search(query)
+            return await request.app.state.service.recommend(query)
         except QueryError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 

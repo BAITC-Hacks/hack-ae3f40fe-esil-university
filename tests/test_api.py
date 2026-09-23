@@ -5,7 +5,7 @@ from api import create_app
 
 @pytest.fixture
 def client():
-    with TestClient(create_app()) as connection:
+    with TestClient(create_app(env_file=None)) as connection:
         yield connection
 
 

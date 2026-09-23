@@ -14,6 +14,7 @@ import logging
 import os
 import re
 from collections import OrderedDict
+from threading import RLock
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 try:
@@ -46,7 +47,6 @@ class LLMExplainer:
     )
     REQUEST_TIMEOUT_SECONDS = 8.0
     CACHE_MAX_SIZE = 256
-    _response_cache: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
 
     def __init__(
         self,
@@ -96,6 +96,9 @@ class LLMExplainer:
             )
 
         self.client: Any = None
+        self._response_cache: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+        self._cache_lock = RLock()
+        self.unavailable_reason = "missing_api_key" if not self.api_key else "sdk_unavailable"
 
         if self.api_key and OpenAI is not None:
             try:
@@ -106,7 +109,8 @@ class LLMExplainer:
                     max_retries=0,
                 )
             except Exception as exc:
-                logger.warning("Не удалось инициализировать LLM-клиент: %s", exc)
+                self.unavailable_reason = "client_initialization_failed"
+                logger.warning("Не удалось инициализировать LLM-клиент: %s", type(exc).__name__)
         elif not self.api_key:
             logger.warning(
                 "Для %s не найден API key; включен локальный fallback-режим.",
@@ -162,7 +166,8 @@ class LLMExplainer:
 
         Returns:
             A ``{"outcome": "SUCCESS", "explanations": {id: text}}`` mapping,
-            or a ``{"outcome": ..., "message": text}`` mapping.
+            or a ``{"outcome": ..., "message": text}`` mapping. The additional
+            ``source`` field distinguishes ``llm`` from ``fallback``.
         """
         safe_request = user_request if isinstance(user_request, dict) else {}
         safe_candidates = candidates if isinstance(candidates, list) else []
@@ -177,16 +182,17 @@ class LLMExplainer:
             outcome = "NO_AVAILABLE_CONTRACTORS"
 
         cache_key = self._make_cache_key(safe_request, safe_candidates, outcome)
-        cached = self._response_cache.get(cache_key)
-        if cached is not None:
-            self._response_cache.move_to_end(cache_key)
-            return copy.deepcopy(cached)
+        with self._cache_lock:
+            cached = self._response_cache.get(cache_key)
+            if cached is not None:
+                self._response_cache.move_to_end(cache_key)
+                return copy.deepcopy(cached)
 
         if self.client is None:
             result = self._fallback_explanation(
                 safe_request, safe_candidates, outcome
             )
-            return self._remember(cache_key, result)
+            return {**result, "source": "fallback", "fallback_reason": self.unavailable_reason}
 
         payload = {
             "outcome": outcome,
@@ -194,6 +200,7 @@ class LLMExplainer:
             "candidates": self._json_safe(safe_candidates),
         }
 
+        failure_reason = "request_failed"
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -208,20 +215,23 @@ class LLMExplainer:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.0,
+                max_tokens=512,
             )
+            failure_reason = "invalid_response"
             content = response.choices[0].message.content
             if not isinstance(content, str) or not content.strip():
                 raise ValueError("LLM вернула пустой ответ.")
 
             parsed = json.loads(content)
             result = self._validate_response(parsed, outcome, safe_candidates)
+            result["source"] = "llm"
             return self._remember(cache_key, result)
         except Exception as exc:
-            logger.warning("LLM-объяснение недоступно; использую fallback: %s", exc)
+            logger.warning("LLM-объяснение недоступно; использую fallback: %s", type(exc).__name__)
             result = self._fallback_explanation(
                 safe_request, safe_candidates, outcome
             )
-            return self._remember(cache_key, result)
+            return {**result, "source": "fallback", "fallback_reason": failure_reason}
 
     def _fallback_explanation(
         self,
@@ -437,10 +447,11 @@ class LLMExplainer:
         return json.dumps(key_data, ensure_ascii=False, sort_keys=True, default=str)
 
     def _remember(self, key: str, result: Dict[str, Any]) -> Dict[str, Any]:
-        self._response_cache[key] = copy.deepcopy(result)
-        self._response_cache.move_to_end(key)
-        while len(self._response_cache) > self.CACHE_MAX_SIZE:
-            self._response_cache.popitem(last=False)
+        with self._cache_lock:
+            self._response_cache[key] = copy.deepcopy(result)
+            self._response_cache.move_to_end(key)
+            while len(self._response_cache) > self.CACHE_MAX_SIZE:
+                self._response_cache.popitem(last=False)
         return copy.deepcopy(result)
 
     @staticmethod

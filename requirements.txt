@@ -3,3 +3,6 @@ fastapi==0.141.1
 pydantic==2.13.5
 starlette==1.7.0
 uvicorn==0.53.0
+anyio==4.15.1
+openai==3.19.0
+python-dotenv==1.2.3

@@ -1,0 +1,100 @@
+{
+  "checked_on": "2026-09-23",
+  "mode": "real_local_uvicorn_no_api_key",
+  "health": {
+    "status": "ok",
+    "total_profiles": 66,
+    "dataset_version": "b26ceb2a4da77b0a49d884b7957e71d38d7991de504e3ef1ee6a7219087425de"
+  },
+  "invalid_input_status": 422,
+  "scenarios": [
+    {
+      "scenario": "01_dense_request",
+      "status": "ok",
+      "outcome": "A",
+      "cards": [
+        "HK-88430",
+        "HK-29829",
+        "HK-27222"
+      ],
+      "http_ms": 6.453,
+      "explanation_status": {
+        "source": "deterministic_template",
+        "reason": "missing_api_key",
+        "provider": "openai"
+      }
+    },
+    {
+      "scenario": "02_rare_request",
+      "status": "ok",
+      "outcome": "A",
+      "cards": [
+        "HK-39372"
+      ],
+      "http_ms": 3.015,
+      "explanation_status": {
+        "source": "deterministic_template",
+        "reason": "missing_api_key",
+        "provider": "openai"
+      }
+    },
+    {
+      "scenario": "03_no_matches_request",
+      "status": "no_matches",
+      "outcome": "C",
+      "cards": [],
+      "http_ms": 1.941,
+      "explanation_status": {
+        "source": "deterministic_template",
+        "reason": "empty_result",
+        "provider": "openai"
+      }
+    },
+    {
+      "scenario": "04_no_category_request",
+      "status": "no_category_in_city",
+      "outcome": "B",
+      "cards": [],
+      "http_ms": 1.418,
+      "explanation_status": {
+        "source": "deterministic_template",
+        "reason": "empty_result",
+        "provider": "openai"
+      }
+    },
+    {
+      "scenario": "05_other_date_request",
+      "status": "ok",
+      "outcome": "A",
+      "cards": [
+        "HK-44923",
+        "HK-27222",
+        "HK-44733"
+      ],
+      "http_ms": 4.463,
+      "explanation_status": {
+        "source": "deterministic_template",
+        "reason": "missing_api_key",
+        "provider": "openai"
+      }
+    },
+    {
+      "scenario": "06_languages_duration_request",
+      "status": "ok",
+      "outcome": "A",
+      "cards": [
+        "HK-75012"
+      ],
+      "http_ms": 3.066,
+      "explanation_status": {
+        "source": "deterministic_template",
+        "reason": "missing_api_key",
+        "provider": "openai"
+      }
+    }
+  ],
+  "limitations": [
+    "External providers were mocked in tests, not called live.",
+    "Streamlit app.py is absent in the team repository."
+  ]
+}
