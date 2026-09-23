@@ -1,0 +1,199 @@
+[
+  {
+    "scenario": "01_dense",
+    "request": {
+      "city": "Алматы",
+      "date": "2026-10-10",
+      "category": "Ведущий",
+      "event_format": "корпоратив",
+      "budget_kzt": 1500000
+    },
+    "status": "ok",
+    "summary": {
+      "total_profiles": 66,
+      "in_city": 50,
+      "in_city_category": 10,
+      "matched": 5,
+      "returned_candidates": 5,
+      "displayed_cards": 3,
+      "excluded_profiles": 5,
+      "exclusions_by_reason": {
+        "busy_date": 4,
+        "over_budget": 1,
+        "event_format": 1,
+        "languages": 0,
+        "duration": 0
+      },
+      "reason_counts_overlap": true
+    },
+    "card_ids": [
+      "HK-88430",
+      "HK-29829",
+      "HK-27222"
+    ],
+    "message": "Подходит профилей: 5; показано: 3."
+  },
+  {
+    "scenario": "02_rare",
+    "request": {
+      "city": "Алматы",
+      "date": "2026-10-10",
+      "category": "Флорист",
+      "event_format": "корпоратив",
+      "budget_kzt": 1500000
+    },
+    "status": "ok",
+    "summary": {
+      "total_profiles": 66,
+      "in_city": 50,
+      "in_city_category": 2,
+      "matched": 1,
+      "returned_candidates": 1,
+      "displayed_cards": 1,
+      "excluded_profiles": 1,
+      "exclusions_by_reason": {
+        "busy_date": 1,
+        "over_budget": 0,
+        "event_format": 1,
+        "languages": 0,
+        "duration": 0
+      },
+      "reason_counts_overlap": true
+    },
+    "card_ids": [
+      "HK-39372"
+    ],
+    "message": "Подходит профилей: 1; показано: 1. В городе «Алматы» всего профилей этой категории: 2; после фильтрации осталось: 1. Причины исключения: заняты на дату — 1; не берут выбранный формат — 1. У одного профиля может быть несколько причин."
+  },
+  {
+    "scenario": "03_no_matches",
+    "request": {
+      "city": "Алматы",
+      "date": "2026-12-26",
+      "category": "Ведущий",
+      "event_format": "корпоратив",
+      "budget_kzt": 50000
+    },
+    "status": "no_matches",
+    "summary": {
+      "total_profiles": 66,
+      "in_city": 50,
+      "in_city_category": 10,
+      "matched": 0,
+      "returned_candidates": 0,
+      "displayed_cards": 0,
+      "excluded_profiles": 10,
+      "exclusions_by_reason": {
+        "busy_date": 9,
+        "over_budget": 10,
+        "event_format": 1,
+        "languages": 0,
+        "duration": 0
+      },
+      "reason_counts_overlap": true
+    },
+    "card_ids": [],
+    "message": "В городе «Алматы» найдено профилей категории «Ведущий»: 10. На 2026-12-26 никто не проходит все заданные условия. Причины исключения: заняты на дату — 9; начальная цена выше бюджета — 10; не берут выбранный формат — 1. У одного профиля может быть несколько причин."
+  },
+  {
+    "scenario": "04_no_category",
+    "request": {
+      "city": "Астана",
+      "date": "2026-10-10",
+      "category": "Декоратор",
+      "event_format": "корпоратив",
+      "budget_kzt": 1500000
+    },
+    "status": "no_category_in_city",
+    "summary": {
+      "total_profiles": 66,
+      "in_city": 15,
+      "in_city_category": 0,
+      "matched": 0,
+      "returned_candidates": 0,
+      "displayed_cards": 0,
+      "excluded_profiles": 0,
+      "exclusions_by_reason": {
+        "busy_date": 0,
+        "over_budget": 0,
+        "event_format": 0,
+        "languages": 0,
+        "duration": 0
+      },
+      "reason_counts_overlap": true
+    },
+    "card_ids": [],
+    "message": "В городе «Астана» в датасете нет категории «Декоратор»."
+  },
+  {
+    "scenario": "05_other_date",
+    "request": {
+      "city": "Алматы",
+      "date": "2026-10-11",
+      "category": "Ведущий",
+      "event_format": "корпоратив",
+      "budget_kzt": 1500000
+    },
+    "status": "ok",
+    "summary": {
+      "total_profiles": 66,
+      "in_city": 50,
+      "in_city_category": 10,
+      "matched": 4,
+      "returned_candidates": 4,
+      "displayed_cards": 3,
+      "excluded_profiles": 6,
+      "exclusions_by_reason": {
+        "busy_date": 4,
+        "over_budget": 1,
+        "event_format": 1,
+        "languages": 0,
+        "duration": 0
+      },
+      "reason_counts_overlap": true
+    },
+    "card_ids": [
+      "HK-44923",
+      "HK-27222",
+      "HK-44733"
+    ],
+    "message": "Подходит профилей: 4; показано: 3."
+  },
+  {
+    "scenario": "06_languages_duration",
+    "request": {
+      "city": "Алматы",
+      "date": "2026-10-10",
+      "category": "Ведущий",
+      "event_format": "корпоратив",
+      "budget_kzt": 1500000,
+      "languages": [
+        "русский",
+        "английский"
+      ],
+      "duration_hours": 4
+    },
+    "status": "ok",
+    "summary": {
+      "total_profiles": 66,
+      "in_city": 50,
+      "in_city_category": 10,
+      "matched": 1,
+      "returned_candidates": 1,
+      "displayed_cards": 1,
+      "excluded_profiles": 9,
+      "exclusions_by_reason": {
+        "busy_date": 4,
+        "over_budget": 1,
+        "event_format": 1,
+        "languages": 7,
+        "duration": 0
+      },
+      "reason_counts_overlap": true
+    },
+    "card_ids": [
+      "HK-75012"
+    ],
+    "message": "Подходит профилей: 1; показано: 1. В городе «Алматы» всего профилей этой категории: 10; после фильтрации осталось: 1. Причины исключения: заняты на дату — 4; начальная цена выше бюджета — 1; не берут выбранный формат — 1; нет всех требуемых языков — 7. У одного профиля может быть несколько причин."
+  }
+]
