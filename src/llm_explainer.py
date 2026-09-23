@@ -8,6 +8,7 @@ API key or SDK is available, deterministic local explanations are used.
 from __future__ import annotations
 
 import copy
+from importlib import import_module
 import json
 import logging
 import os
@@ -16,9 +17,9 @@ from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 try:
-    from openai import OpenAI
-except ImportError:  # Keep the local fallback usable without the SDK installed.
-    OpenAI = None  # type: ignore[assignment,misc]
+    OpenAI: Any = getattr(import_module("openai"), "OpenAI")
+except (ImportError, AttributeError):  # Keep fallback usable without the SDK.
+    OpenAI = None
 
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,9 @@ logger = logging.getLogger(__name__)
 class LLMExplainer:
     """Generate short, grounded contractor explanations and empty-state copy."""
 
+    NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+    NVIDIA_DEFAULT_MODEL = "meta/llama-3.1-70b-instruct"
+    OPENAI_DEFAULT_MODEL = "gpt-4o-mini"
     VALID_OUTCOMES = {
         "SUCCESS",
         "NO_CATEGORY_IN_CITY",
@@ -48,18 +52,50 @@ class LLMExplainer:
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model_name: str = "gpt-4o-mini",
+        model_name: Optional[str] = None,
+        provider: str = "openai",
     ) -> None:
-        """Initialize an OpenAI-compatible client when credentials are available."""
-        self.api_key = (
-            api_key
-            or os.getenv("OPENAI_API_KEY")
-            or os.getenv("DEEPSEEK_API_KEY")
-            or os.getenv("OPENROUTER_API_KEY")
-        )
-        self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
-        self.model_name = model_name
-        self.client = None
+        """Initialize an OpenAI or NVIDIA NIM client.
+
+        Args:
+            api_key: Optional explicit provider API key. Otherwise the key is
+                read from ``NVIDIA_API_KEY`` or ``OPENAI_API_KEY``.
+            base_url: Optional endpoint override. NVIDIA defaults to its NIM
+                endpoint; OpenAI uses the SDK's standard endpoint unless
+                ``OPENAI_BASE_URL`` is set.
+            model_name: Optional model override. NVIDIA defaults to
+                ``meta/llama-3.1-70b-instruct``; OpenAI defaults to
+                ``gpt-4o-mini``.
+            provider: ``"nvidia"`` or ``"openai"``. The default remains
+                ``"openai"`` for compatibility with existing callers.
+        """
+        self.provider = str(provider or "openai").strip().lower()
+        if self.provider == "nvidia":
+            self.api_key = api_key or os.getenv("NVIDIA_API_KEY")
+            self.base_url = (
+                base_url
+                or os.getenv("NVIDIA_BASE_URL")
+                or self.NVIDIA_BASE_URL
+            )
+            self.model_name = (
+                model_name
+                or os.getenv("NVIDIA_MODEL")
+                or self.NVIDIA_DEFAULT_MODEL
+            )
+        elif self.provider == "openai":
+            self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+            self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
+            self.model_name = (
+                model_name
+                or os.getenv("OPENAI_MODEL")
+                or self.OPENAI_DEFAULT_MODEL
+            )
+        else:
+            raise ValueError(
+                f"Неизвестный provider {provider!r}; используйте 'nvidia' или 'openai'."
+            )
+
+        self.client: Any = None
 
         if self.api_key and OpenAI is not None:
             try:
@@ -72,7 +108,10 @@ class LLMExplainer:
             except Exception as exc:
                 logger.warning("Не удалось инициализировать LLM-клиент: %s", exc)
         elif not self.api_key:
-            logger.warning("API key не найден; включен локальный fallback-режим.")
+            logger.warning(
+                "Для %s не найден API key; включен локальный fallback-режим.",
+                self.provider,
+            )
         else:
             logger.warning(
                 "Пакет openai не установлен; включен локальный fallback-режим."
@@ -388,6 +427,7 @@ class LLMExplainer:
         outcome: str,
     ) -> str:
         key_data = {
+            "provider": self.provider,
             "model": self.model_name,
             "base_url": self.base_url,
             "outcome": outcome,
@@ -571,7 +611,6 @@ class LLMExplainer:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    explainer = LLMExplainer()
     examples = [
         (
             "SUCCESS",
@@ -640,6 +679,9 @@ if __name__ == "__main__":
         ),
     ]
 
+    # При наличии OPENAI_API_KEY будут отправлены реальные запросы OpenAI.
+    explainer = LLMExplainer(provider="openai")
+    print(f"\n=== Provider: openai; model: {explainer.model_name} ===")
     for outcome, request, candidates in examples:
         print(f"\n--- {outcome} ---")
         result = explainer.generate_explanations(request, candidates, outcome)
